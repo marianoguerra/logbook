@@ -7,6 +7,8 @@
                  [org.clojure/clojurescript "0.0-2760"]
                  [org.omcljs/om "0.8.8"]
                  [prismatic/om-tools "0.3.11"]
+                 [json-html "0.2.8"]
+                 [markdown-clj "0.9.66"]
                  [racehub/om-bootstrap "0.5.0"]]
   :plugins [[lein-cljsbuild "1.0.5"]]
   :cljsbuild {

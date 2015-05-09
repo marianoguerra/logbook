@@ -1,0 +1,81 @@
+body{
+ margin: 2% 20%;
+}
+
+.entry{
+ border: 1px solid #aaa;
+ width: 100%;
+ display: table;
+ margin: 1em 0;
+}
+
+.entry.no-frame{
+ border: 0;
+ padding: 0;
+}
+
+.entry-header{
+ width: 100%;
+ padding: 0.5em;
+ display: table;
+}
+
+.entry-time{
+ float: right;
+ font-size: 0.8em;
+ color: #777;
+}
+
+.entry-title{
+ float: left;
+}
+
+.entry-body{
+ width: 100%;
+ padding: 1em;
+}
+
+.entry.no-frame>.entry-body{
+ padding: 0;
+}
+
+.entry-error{
+ /* bg saturation 20, border 60*/
+ background-color: #F4C6C3;
+ border-color: #F46A62;
+}
+
+.entry-command{
+ background-color: #111;
+ color: #eee;
+}
+
+pre{
+ border: 0;
+}
+
+.command-input{
+ color: #eee;
+}
+
+.command-output{
+ border: 0;
+ background-color: #111;
+ color: #eee;
+}
+
+.command-input::before{
+ content: "$ ";
+ color: #eee;
+}
+
+.buttons{
+ width: 100%;
+ display: table;
+ text-align: right;
+ margin: 1em 0;
+}
+
+.entry-markdown>.entry-body{
+ padding-top: 0;
+}
