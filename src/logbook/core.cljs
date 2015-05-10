@@ -216,8 +216,16 @@
 
       (set-text state value))))
 
+(defn on-textarea-key-down [event state]
+  (let [ctrl-pressed (.-ctrlKey event)
+        key-code (.-keyCode event)]
+    (when (and ctrl-pressed (= key-code 13))
+      (create-entry state))))
+
+
 (defn logbook-input [state]
   (let [on-change #(on-textarea-change % state)
+        on-key-down #(on-textarea-key-down % state)
         on-type-change #(set-type state (event-value %))
         on-create #(create-entry state)
         {selected :type text :text input-error :input-error} state]
@@ -227,7 +235,10 @@
                        (map #(entry-option selected %)
                             (sort-by (fn [[_ val]] (:label val))
                                      entry-formatters)))
-              (i/input {:type "textarea" :on-change on-change :value text})
+              (i/input {:type "textarea"
+                        :on-change on-change
+                        :on-key-down on-key-down
+                        :value text})
               (when input-error
                 (r/alert {:class "input-error" :bs-style "danger"} input-error))
               (dom/div {:class "buttons"}
