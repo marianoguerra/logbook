@@ -63,6 +63,19 @@
                 (dom/p {:class "link"} (dom/a {:href url :target "_blank"} title))
                 (dom/p {:class "link-description"} description))))
 
+(defn entry-image [type {:keys [url title description]} time icon]
+  (base-entry :entry-link time icon
+              (dom/div {:class "img-wrapper"}
+                (when-not (empty? title)
+                  (dom/h2 {:class "img-title"} title))
+
+                (dom/p {:class "img"}
+                       (dom/a {:href url :target "_blank"}
+                              (dom/img {:src url :title description})))
+
+                (when-not (empty? description)
+                  (dom/p {:class "img-description"} description)))))
+
 (defn entry-json [type value time icon]
   (base-entry :entry-json time icon
               (dom/div {:dangerouslySetInnerHTML
@@ -84,6 +97,12 @@
     {:ok? true :value {:url url
                        :title (or title url)
                        :description (or description "")}}))
+
+(defn parse-image [txt]
+  (let [[url title description] (clojure.string/split txt #"\n" 3)]
+    {:ok? true :value {:url url
+                       :title (clojure.string/trim (or title ""))
+                       :description (clojure.string/trim (or description ""))}}))
 
 (defn parse-json [txt]
   (try
@@ -114,6 +133,10 @@
              :icon "link"
              :shortcut ":"
              :parser parse-link}
+   :image {:fn entry-image
+           :label "Image"
+           :icon "picture"
+           :parser parse-image}
    :json {:fn entry-json
              :label "JSON"
              :icon "cog"

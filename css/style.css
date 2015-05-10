@@ -79,3 +79,11 @@ pre{
 .entry-markdown>.entry-body{
  padding-top: 0;
 }
+
+.img{
+ text-align: center;
+}
+
+.img img{
+ max-width: 100%;
+}
