@@ -10,6 +10,8 @@
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as dom :include-macros true]))
 
+(enable-console-print!)
+
 (defn widget [data owner]
   (reify
     om/IRender
@@ -121,37 +123,53 @@
   {:error {:fn entry-error
            :label "Error"
            :icon "alert"
-           :shortcut "!"
+           :shortcut \!
            :parser identity-parser}
    :command {:fn entry-command
              :label "Command"
              :icon "console"
-             :shortcut "$"
+             :shortcut \$
              :parser parse-command}
    :link {:fn entry-link
-             :label "Link"
-             :icon "link"
-             :shortcut ":"
-             :parser parse-link}
+          :label "Link"
+          :icon "link"
+          :shortcut \l
+          :parser parse-link}
    :image {:fn entry-image
            :label "Image"
            :icon "picture"
+           :shortcut \i
            :parser parse-image}
    :json {:fn entry-json
-             :label "JSON"
-             :icon "cog"
-             :shortcut "{"
-             :parser parse-json}
+          :label "JSON"
+          :icon "cog"
+          :shortcut \{
+          :parser parse-json}
    :markdown {:fn entry-markdown
               :label "Markdown"
               :icon "pencil"
-              :shortcut "#"
+              :shortcut \#
               :parser identity-parser}
    :output {:fn entry-output
             :label "Output"
             :icon "menu-right"
-            :shortcut ">"
+            :shortcut \>
             :parser identity-parser}})
+
+; TODO: make entry-formatters an atom and watch for changes and update this
+(def entry-formatters-shortcuts
+  (let [shortcuts (map (fn [[k v]]
+                             (when-let [shortcut (:shortcut v)]
+                               [shortcut k]))
+                           entry-formatters)
+        shortcuts-map (into {} shortcuts)]
+    shortcuts-map))
+
+(defn set-text [state txt]
+  (om/update! state :text txt))
+
+(defn set-type [state type]
+  (om/update! state :type type))
 
 (defn unknown-entry [type value time icon]
   (base-entry :unknown time nil (str "Unknown entry of type: " (name type))))
@@ -176,20 +194,31 @@
         (om/update! state :input-error nil)
         (om/transact! state :entries
                       #(conj % {:type type-kw :value value :time now}))
-        (om/update! state :text ""))
+        (set-text state ""))
 
       (om/update! state [:input-error] reason))))
 
 (defn event-value [event]
   (.-value (.-target event)))
 
+(defn on-textarea-change [event state]
+  (let [value (event-value event)]
+    (if (and (= (count value) 2) (= (first value) \#))
+      (if-let [new-type (get entry-formatters-shortcuts (second value))]
+        (do
+          (set-type state new-type)
+          (set-text state ""))
+
+        (set-text state value))
+
+      (set-text state value))))
+
 (defn logbook-input [state]
-  (let [on-change (fn [event]
-                    (om/transact! state #(assoc % :text (event-value event))))
-        on-type-change (fn [event]
-                    (om/transact! state #(assoc % :type (event-value event))))
+  (let [on-change #(on-textarea-change % state)
+        on-type-change #(set-type state (event-value %))
         on-create #(create-entry state)
         {selected :type text :text input-error :input-error} state]
+
     (dom/form {:class "logbook-input"}
               (i/input {:type "select" :on-change on-type-change :value selected}
                        (map #(entry-option selected %)
