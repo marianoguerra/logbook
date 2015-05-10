@@ -5,6 +5,8 @@
             [om-bootstrap.random :as r]
             [om-bootstrap.button :as b]
 
+            [cognitect.transit :as t]
+
             [json-html.core :as json-html]
             [markdown.core :as md]
             [om-tools.core :refer-macros [defcomponent]]
@@ -12,11 +14,8 @@
 
 (enable-console-print!)
 
-(defn widget [data owner]
-  (reify
-    om/IRender
-    (render [this]
-      (dom/h1 nil (:text data)))))
+(def writer (t/writer :json))
+(def reader (t/reader :json))
 
 (defonce app-state (atom {:title "My First LogBook"
                           :author "Mariano Guerra"
@@ -245,7 +244,6 @@
         key-code (.-keyCode event)]
     (when (and ctrl-pressed (= key-code 13))
       (create-entry state))))
-
 
 (defn logbook-input [state]
   (let [on-change #(on-textarea-change % state)
