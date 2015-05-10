@@ -87,3 +87,8 @@ pre{
 .img img{
  max-width: 100%;
 }
+
+.entry-json-raw{
+ width: 100%;
+ min-height: 10em;
+}
