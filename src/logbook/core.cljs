@@ -38,6 +38,11 @@
 (defn format-timestamp [timestamp]
   (.toISOString (new js/Date timestamp)))
 
+(defn render-md [class-name txt]
+  (dom/div {:class class-name
+            :dangerouslySetInnerHTML {:__html (md/md->html txt)}}
+           nil))
+
 (defn base-entry [sub-class time icon body]
   (dom/div {:class (str "entry " (name sub-class))}
            (dom/div {:class "entry-header"}
@@ -63,7 +68,7 @@
   (base-entry :entry-link time icon
               (dom/div {:class "link-wrapper"}
                 (dom/p {:class "link"} (dom/a {:href url :target "_blank"} title))
-                (dom/p {:class "link-description"} description))))
+                (render-md "link-description" description))))
 
 (defn entry-image [type {:keys [url title description]} time icon]
   (base-entry :entry-link time icon
@@ -76,7 +81,7 @@
                               (dom/img {:src url :title description})))
 
                 (when-not (empty? description)
-                  (dom/p {:class "img-description"} description)))))
+                  (render-md "img-description" description)))))
 
 (defn entry-json [type value time icon]
   (base-entry :entry-json time icon
@@ -86,9 +91,7 @@
 
 (defn entry-markdown [type value time icon]
   (base-entry :entry-markdown time icon
-              (dom/div {:dangerouslySetInnerHTML
-                        {:__html (md/md->html value)}}
-                       nil)))
+              (render-md "md-content" value)))
 
 (defn parse-command [txt]
   (let [[input output] (clojure.string/split txt #"\n" 2)]
