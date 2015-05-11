@@ -1,6 +1,8 @@
 (ns logbook.core
   (:require [om.core :as om]
 
+            [logbook.store :as store]
+
             [om-bootstrap.input :as i]
             [om-bootstrap.random :as r]
             [om-bootstrap.button :as b]
@@ -17,7 +19,8 @@
 (def writer (t/writer :json))
 (def reader (t/reader :json))
 
-(defonce app-state (atom {:title "My First LogBook"
+(defonce app-state (atom {:id "my-first-logbook-mariano-guerra"
+                          :title "My First LogBook"
                           :author "Mariano Guerra"
                           :created "Yesterday"
                           :type "json"
@@ -204,17 +207,17 @@
   (dom/option {:value (name type)}
               label (when shortcut (str " (" shortcut ")"))))
 
-(defn create-entry [state]
-  (let [{:keys [type text]} state
+(defn create-entry [state db]
+  (let [{:keys [type text id]} state
         type-kw (keyword type)
         parse (get-in entry-formatters [type-kw :parser])
         now (.now js/Date)
         {:keys [ok? error reason value]} (parse text)]
     (if ok?
-      (do
+      (let [entry {:type type-kw :value value :time now :book-id id}]
+        (store/post db entry prn)
         (om/update! state :input-error nil)
-        (om/transact! state :entries
-                      #(conj % {:type type-kw :value value :time now}))
+        (om/transact! state :entries #(conj % entry))
         (set-text state ""))
 
       (om/update! state [:input-error] reason))))
@@ -239,17 +242,17 @@
 
       (set-text state value))))
 
-(defn on-textarea-key-down [event state]
+(defn on-textarea-key-down [event state db]
   (let [ctrl-pressed (.-ctrlKey event)
         key-code (.-keyCode event)]
     (when (and ctrl-pressed (= key-code 13))
-      (create-entry state))))
+      (create-entry state db))))
 
-(defn logbook-input [state]
+(defn logbook-input [state db]
   (let [on-change #(on-textarea-change % state)
-        on-key-down #(on-textarea-key-down % state)
+        on-key-down #(on-textarea-key-down % state db)
         on-type-change #(set-type state (event-value %))
-        on-create #(create-entry state)
+        on-create #(create-entry state db)
         {selected :type text :text input-error :input-error
          textarea-height :textarea-height} state]
 
@@ -268,18 +271,18 @@
               (dom/div {:class "buttons"}
                        (b/button {:bs-style "primary" :on-click on-create} "Create")))))
 
-(defn logbook [{:keys [title author created entries] :as state}]
+(defn logbook [{:keys [title author created entries] :as state} db]
   (dom/div {:class "logbook"}
           (dom/h1 title)
           (dom/p {:class "logbook-data"} "by " (dom/strong author) " created " (dom/em created))
           (dom/div {:class "entries"} (om/build-all entry entries))
           (dom/hr)
-          (logbook-input state)))
+          (logbook-input state db)))
 
 (om/root
   (fn [data owner]
     (reify om/IRender
       (render [_]
-        (logbook data))))
+        (logbook data (store/new-db "logbook")))))
   app-state
   {:target (. js/document (getElementById "root"))})
