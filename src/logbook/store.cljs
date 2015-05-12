@@ -8,6 +8,9 @@
 (defn post [{db :db} doc callback]
   (.post db (clj->js doc) callback))
 
+(defn put [{db :db} doc callback]
+  (.put db (clj->js doc) callback))
+
 (defn get [{db :db} id callback]
   (.get db id callback))
 
@@ -19,3 +22,12 @@
 
 (defn sync [{db :db} source target & options]
   (.sync db source target (clj->js (or options {}))))
+
+(defn query [{db :db} query options callback]
+  (.query db (clj->js query) (clj->js options) callback))
+
+
+(defn setup-db [db-obj]
+  (let [map-fun "function mapFun(doc) { emit([doc['book-id'], doc.time]); }"
+        design-doc {:_id "_design/logbook", :views {:entries {:map map-fun}}}]
+    (put db-obj design-doc prn)))

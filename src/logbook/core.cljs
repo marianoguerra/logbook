@@ -7,6 +7,8 @@
             [om-bootstrap.random :as r]
             [om-bootstrap.button :as b]
 
+            [clojure.walk :as clj-walk]
+
             [cognitect.transit :as t]
 
             [json-html.core :as json-html]
@@ -27,16 +29,7 @@
                           :text ""
                           :textarea-height 1
                           :input-error nil
-                          :entries [{:type :error
-                                     :time 1431200053442
-                                     :value "File Not Found"}
-                                    {:type :output
-                                     :time 1431200053442
-                                     :value "Compiling \"main.js\" from [\"src\"]...\nSuccessfully compiled \"main.js\" in 0.116 seconds."}
-                                    {:type :command
-                                     :time 1431200053442
-                                     :value {:input "ls"
-                                             :output ". foo bar"}}]}))
+                          :entries []}))
 
 (defn format-timestamp [timestamp]
   (.toISOString (new js/Date timestamp)))
@@ -143,41 +136,41 @@
   {:ok? true :value txt})
 
 (def entry-formatters
-  {:error {:fn entry-error
-           :label "Error"
-           :icon "alert"
-           :shortcut \!
-           :parser identity-parser}
-   :command {:fn entry-command
-             :label "Command"
-             :icon "console"
-             :shortcut \$
-             :parser parse-command}
-   :link {:fn entry-link
-          :label "Link"
-          :icon "link"
-          :shortcut \l
-          :parser parse-link}
-   :image {:fn entry-image
-           :label "Image"
-           :icon "picture"
-           :shortcut \i
-           :parser parse-image}
-   :json {:fn entry-json
-          :label "JSON"
-          :icon "cog"
-          :shortcut \{
-          :parser entry-json-parse}
-   :markdown {:fn entry-markdown
-              :label "Markdown"
-              :icon "pencil"
-              :shortcut \#
-              :parser identity-parser}
-   :output {:fn entry-output
-            :label "Output"
-            :icon "menu-right"
-            :shortcut \>
-            :parser identity-parser}})
+  {"error" {:fn entry-error
+            :label "Error"
+            :icon "alert"
+            :shortcut \!
+            :parser identity-parser}
+   "command" {:fn entry-command
+              :label "Command"
+              :icon "console"
+              :shortcut \$
+              :parser parse-command}
+   "link" {:fn entry-link
+           :label "Link"
+           :icon "link"
+           :shortcut \l
+           :parser parse-link}
+   "image" {:fn entry-image
+            :label "Image"
+            :icon "picture"
+            :shortcut \i
+            :parser parse-image}
+   "json" {:fn entry-json
+           :label "JSON"
+           :icon "cog"
+           :shortcut \{
+           :parser entry-json-parse}
+   "markdown" {:fn entry-markdown
+               :label "Markdown"
+               :icon "pencil"
+               :shortcut \#
+               :parser identity-parser}
+   "output" {:fn entry-output
+             :label "Output"
+             :icon "menu-right"
+             :shortcut \>
+             :parser identity-parser}})
 
 ; TODO: make entry-formatters an atom and watch for changes and update this
 (def entry-formatters-shortcuts
@@ -209,12 +202,11 @@
 
 (defn create-entry [state db]
   (let [{:keys [type text id]} state
-        type-kw (keyword type)
-        parse (get-in entry-formatters [type-kw :parser])
+        parse (get-in entry-formatters [type :parser])
         now (.now js/Date)
         {:keys [ok? error reason value]} (parse text)]
     (if ok?
-      (let [entry {:type type-kw :value value :time now :book-id id}]
+      (let [entry {:type type :value value :time now :book-id id}]
         (store/post db entry prn)
         (om/update! state :input-error nil)
         (om/transact! state :entries #(conj % entry))
@@ -279,10 +271,23 @@
           (dom/hr)
           (logbook-input state db)))
 
-(om/root
-  (fn [data owner]
-    (reify om/IRender
-      (render [_]
-        (logbook data (store/new-db "logbook")))))
-  app-state
-  {:target (. js/document (getElementById "root"))})
+
+(defn init []
+  (let [db (store/new-db "logbook")]
+    (store/setup-db db)
+    (store/query db "logbook/entries" {:include_docs true}
+                 (fn [err res]
+                   (let [rows (.-rows res)
+                         docs (map #(.-doc %) rows)
+                         clj-docs (into [] (clj-walk/keywordize-keys (js->clj docs)))]
+
+                     (swap! app-state #(assoc % :entries clj-docs)))))
+    (om/root
+      (fn [data owner]
+        (reify om/IRender
+          (render [_]
+            (logbook data db))))
+      app-state
+      {:target (. js/document (getElementById "root"))})))
+
+(init)
