@@ -279,7 +279,7 @@
                  (fn [err res]
                    (let [rows (.-rows res)
                          docs (map #(.-doc %) rows)
-                         clj-docs (into [] (clj-walk/keywordize-keys (js->clj docs)))]
+                         clj-docs (vec (clj-walk/keywordize-keys (js->clj docs)))]
 
                      (swap! app-state #(assoc % :entries clj-docs)))))
     (om/root
