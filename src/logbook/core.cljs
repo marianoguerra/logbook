@@ -6,6 +6,7 @@
             [om-bootstrap.input :as i]
             [om-bootstrap.random :as r]
             [om-bootstrap.button :as b]
+            [om-bootstrap.nav :as n]
 
             [clojure.walk :as clj-walk]
 
@@ -23,7 +24,8 @@
 
 (defonce app-state (atom {:books nil
                           :book nil
-                          :ui {:new-book {:title "" :author ""}}}))
+                          :ui {:new-book {:title "" :author ""}
+                               :sync {:visible? false :local "" :remote ""}}}))
 
 (defn format-timestamp [timestamp]
   (.toISOString (new js/Date timestamp)))
@@ -294,17 +296,21 @@
                  (fn [docs]
                    (om/transact! state #(assoc-in % [:book :entries] docs))))))
 
+(defn on-link-click [callback]
+  (fn [e]
+    (.preventDefault e)
+    (callback)))
 
 (defn logbook-entry [{:keys [created edited title author _id] :as entry} db state]
   (dom/li {:class "logbook-entry"}
           (dom/a {:href "#"
-                  :on-click (fn [e]
-                              (om/update! state :book {:author author
-                                                       :id _id
-                                                       :title title
-                                                       :created created})
-                              (load-book-entries state db _id)
-                              (.preventDefault e))}
+                  :on-click (on-link-click
+                              #((om/update! state :book
+                                          {:author author
+                                           :id _id
+                                           :title title
+                                           :created created})
+                              (load-book-entries state db _id)))}
                  title " " author " " created " " edited)))
 
 (defn load-books [state db]
@@ -328,7 +334,7 @@
                                       (om/update! data title-key "")
                                       (om/update! data author-key "")
                                       (load-books data db)))))]
-    (dom/form {:class "new-book-form"}
+    (dom/form {:class "form-box new-book-form"}
               (i/input {:type "text"
                         :value title
                         :addon-before (r/glyphicon {:glyph "pencil"})
@@ -341,11 +347,51 @@
                        (b/button {:bs-style "primary" :on-click on-create}
                                  "Create " (r/glyphicon {:glyph "book"}))))))
 
-(defn empty-logbook-list [data db]
+(defn sync-box [data db]
+  (let [local-key [:ui :sync :local]
+        remote-key [:ui :sync :remote]
+        local store/name
+        remote (get-in data remote-key)
+        on-upload #(store/replicate local remote)
+        on-download #(store/replicate remote local)
+        on-sync #(store/sync local remote)]
+
+  (dom/form {:class "form-box sync-form"}
+            (i/input {:type "text"
+                      :value remote
+                      :addon-before "Remote"
+                      :on-input (on-change-update data remote-key)})
+            (dom/div {:class "buttons"}
+                     (b/button {:bs-style "primary" :on-click on-upload}
+                               "" (r/glyphicon {:glyph "arrow-up"}))
+                     (b/button {:bs-style "primary" :on-click on-download}
+                               "" (r/glyphicon {:glyph "arrow-down"}))
+                     (b/button {:bs-style "primary" :on-click on-sync}
+                               (r/glyphicon {:glyph "arrow-up"})
+                               (r/glyphicon {:glyph "arrow-down"}))))))
+
+
+(defn top-bar [data db]
+  (let [sync-visible-path [:ui :sync :visible?]
+        on-sync-click (on-link-click #(om/transact! data sync-visible-path not))
+        sync-visible (get-in data sync-visible-path)]
+    (dom/div
+      (n/navbar
+        {:brand (dom/a {:href "#"} "LogBook")}
+        (n/nav
+          {:collapsible? true}
+          (n/nav-item {:key 1 :href "#" :on-click on-sync-click
+                       :class (if sync-visible "nav-item-active" "")}
+                      (r/glyphicon {:glyph "refresh"}))))
+      (when sync-visible
+        (sync-box data db)))))
+
+(defn empty-logbook-list [state db]
   (dom/div
+    (top-bar state db)
     (dom/h2 {:class "centered"}
             "No " (r/glyphicon {:glyph "book"}) "s")
-    (new-book-form data db)))
+    (new-book-form state db)))
 
 (defn logbook-list [state db]
   (let [books (:books state)]
@@ -353,7 +399,9 @@
       (do
         (load-books state db)
         (empty-logbook-list state db))
+
       (dom/div
+        (top-bar state db)
         (dom/ul (map #(logbook-entry % db state) books))
         (new-book-form state db)))))
 
@@ -363,7 +411,7 @@
     (logbook-list data db)))
 
 (defn init []
-  (let [db (store/new-db "logbook")]
+  (let [db (store/new-db store/name)]
     (store/setup-db db)
 
     (om/root

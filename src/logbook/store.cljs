@@ -5,6 +5,7 @@
 ; this types are also written on setup-db map functions, change them in both places
 (def type-entry "e")
 (def type-book "b")
+(def name "logbook")
 
 (defn new-db [name]
   {:name name :db (js/PouchDB. name)})
@@ -24,8 +25,11 @@
 (defn replicate [{db :db} source target & options]
   (.replicate db source target (clj->js (or options {}))))
 
-(defn sync [{db :db} source target & options]
-  (.sync db source target (clj->js (or options {}))))
+(defn sync [source target & options]
+  (.sync js/PouchDB source target (clj->js (or options {}))))
+
+(defn replicate [source target & options]
+  (.replicate js/PouchDB source target (clj->js (or options {}))))
 
 (defn query [{db :db} query options callback]
   (.query db (clj->js query) (clj->js options) callback))

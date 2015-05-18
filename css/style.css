@@ -76,6 +76,10 @@ pre{
  margin: 1em 0;
 }
 
+.buttons>button{
+ margin-left: 1em;
+}
+
 .entry-markdown>.entry-body{
  padding-top: 0;
 }
@@ -93,7 +97,7 @@ pre{
  min-height: 10em;
 }
 
-.new-book-form{
+.form-box{
  border: 1px solid #ddd;
  padding: 1em;
  margin-top: 1em;
@@ -101,4 +105,8 @@ pre{
 
 .centered{
  text-align: center;
+}
+
+.nav-item-active>a{
+ color: #337ab7 !important;
 }
