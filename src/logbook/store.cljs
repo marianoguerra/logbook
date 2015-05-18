@@ -2,6 +2,10 @@
   (:refer-clojure :exclude [remove replicate get])
   (:require [cljsjs.pouchdb :as pdb]))
 
+; this types are also written on setup-db map functions, change them in both places
+(def type-entry "e")
+(def type-book "b")
+
 (defn new-db [name]
   {:name name :db (js/PouchDB. name)})
 
@@ -26,8 +30,10 @@
 (defn query [{db :db} query options callback]
   (.query db (clj->js query) (clj->js options) callback))
 
-
 (defn setup-db [db-obj]
-  (let [map-fun "function mapFun(doc) { emit([doc['book-id'], doc.time]); }"
-        design-doc {:_id "_design/logbook", :views {:entries {:map map-fun}}}]
+  (let [entries-map-fun "function mapFun(doc) { if (doc.t === 'e') { emit([doc['book-id'], doc.created]); }}"
+        books-map-fun "function mapFun(doc) { if (doc.t === 'b') { emit(doc._id); }}"
+        design-doc {:_id "_design/logbook"
+                    :views {:entries {:map entries-map-fun}
+                            :books {:map books-map-fun}}}]
     (put db-obj design-doc prn)))

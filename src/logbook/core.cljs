@@ -21,15 +21,9 @@
 (def writer (t/writer :json))
 (def reader (t/reader :json))
 
-(defonce app-state (atom {:id "my-first-logbook-mariano-guerra"
-                          :title "My First LogBook"
-                          :author "Mariano Guerra"
-                          :created "Yesterday"
-                          :type "json"
-                          :text ""
-                          :textarea-height 1
-                          :input-error nil
-                          :entries []}))
+(defonce app-state (atom {:books nil
+                          :book nil
+                          :ui {:new-book {:title "" :author ""}}}))
 
 (defn format-timestamp [timestamp]
   (.toISOString (new js/Date timestamp)))
@@ -200,13 +194,22 @@
   (dom/option {:value (name type)}
               label (when shortcut (str " (" shortcut ")"))))
 
+(defn date-now []
+  (.now js/Date))
+
+(defn create-book [title author db callback]
+  (let [now (date-now)
+        book {:created now :edited now :title title :author author :t store/type-book}]
+    (store/post db book callback)))
+
 (defn create-entry [state db]
   (let [{:keys [type text id]} state
         parse (get-in entry-formatters [type :parser])
-        now (.now js/Date)
+        now (date-now)
         {:keys [ok? error reason value]} (parse text)]
     (if ok?
-      (let [entry {:type type :value value :time now :book-id id}]
+      (let [entry {:type type :value value :created now :edited now
+                   :book-id id :t store/type-entry}]
         (store/post db entry prn)
         (om/update! state :input-error nil)
         (om/transact! state :entries #(conj % entry))
@@ -266,27 +269,108 @@
 (defn logbook [{:keys [title author created entries] :as state} db]
   (dom/div {:class "logbook"}
           (dom/h1 title)
-          (dom/p {:class "logbook-data"} "by " (dom/strong author) " created " (dom/em created))
+          (dom/p {:class "logbook-data"} "by " (dom/strong author)
+                 " created " (dom/em (format-timestamp created)))
           (dom/div {:class "entries"} (om/build-all entry entries))
           (dom/hr)
           (logbook-input state db)))
 
+(defn results->clj [callback]
+  (fn [err res]
+    (let [rows (.-rows res)
+          docs (map #(.-doc %) rows)
+          clj-docs (vec (clj-walk/keywordize-keys (js->clj docs)))]
+      (callback clj-docs))))
+
+(def small-timestamp 0)
+(def big-timestamp 99999999999999)
+
+(defn load-book-entries [state db id]
+  (store/query db "logbook/entries" {:include_docs true
+                                     :startkey [id small-timestamp]
+                                     :endkey [id big-timestamp]}
+
+               (results->clj
+                 (fn [docs]
+                   (om/transact! state #(assoc-in % [:book :entries] docs))))))
+
+
+(defn logbook-entry [{:keys [created edited title author _id] :as entry} db state]
+  (dom/li {:class "logbook-entry"}
+          (dom/a {:href "#"
+                  :on-click (fn [e]
+                              (om/update! state :book {:author author
+                                                       :id _id
+                                                       :title title
+                                                       :created created})
+                              (load-book-entries state db _id)
+                              (.preventDefault e))}
+                 title " " author " " created " " edited)))
+
+(defn load-books [state db]
+  (store/query db "logbook/books" {:include_docs true}
+               (results->clj
+                 (fn [docs] (om/update! state :books docs)))))
+
+(defn on-change-update [state path]
+  (fn [event]
+    (let [value (event-value event)]
+      (om/update! state path value))))
+
+(defn new-book-form [data db]
+  (let [{:keys [title author]} (get-in data [:ui :new-book])
+        title-key [:ui :new-book :title]
+        author-key [:ui :new-book :author]
+        on-create #(create-book title author db
+                                (fn [err res]
+                                  (when (nil? err)
+                                    (do
+                                      (om/update! data title-key "")
+                                      (om/update! data author-key "")
+                                      (load-books data db)))))]
+    (dom/form {:class "new-book-form"}
+              (i/input {:type "text"
+                        :value title
+                        :addon-before (r/glyphicon {:glyph "pencil"})
+                        :on-input (on-change-update data title-key)})
+              (i/input {:type "text"
+                        :value author
+                        :addon-before (r/glyphicon {:glyph "user"})
+                        :on-input (on-change-update data author-key)})
+              (dom/div {:class "buttons"}
+                       (b/button {:bs-style "primary" :on-click on-create}
+                                 "Create " (r/glyphicon {:glyph "book"}))))))
+
+(defn empty-logbook-list [data db]
+  (dom/div
+    (dom/h2 {:class "centered"}
+            "No " (r/glyphicon {:glyph "book"}) "s")
+    (new-book-form data db)))
+
+(defn logbook-list [state db]
+  (let [books (:books state)]
+    (if (empty? books)
+      (do
+        (load-books state db)
+        (empty-logbook-list state db))
+      (dom/div
+        (dom/ul (map #(logbook-entry % db state) books))
+        (new-book-form state db)))))
+
+(defn main-ui [data db]
+  (if-let [book (:book data)]
+    (logbook book db)
+    (logbook-list data db)))
 
 (defn init []
   (let [db (store/new-db "logbook")]
     (store/setup-db db)
-    (store/query db "logbook/entries" {:include_docs true}
-                 (fn [err res]
-                   (let [rows (.-rows res)
-                         docs (map #(.-doc %) rows)
-                         clj-docs (vec (clj-walk/keywordize-keys (js->clj docs)))]
 
-                     (swap! app-state #(assoc % :entries clj-docs)))))
     (om/root
       (fn [data owner]
         (reify om/IRender
           (render [_]
-            (logbook data db))))
+            (main-ui data db))))
       app-state
       {:target (. js/document (getElementById "root"))})))
 

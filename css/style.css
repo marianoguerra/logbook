@@ -92,3 +92,13 @@ pre{
  width: 100%;
  min-height: 10em;
 }
+
+.new-book-form{
+ border: 1px solid #ddd;
+ padding: 1em;
+ margin-top: 1em;
+}
+
+.centered{
+ text-align: center;
+}
