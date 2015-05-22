@@ -16,10 +16,12 @@
             [json-html.core :as json-html]
             [markdown.core :as md]
             logbook.all-highlighters
+            [cljsjs.csv :as csv]
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as dom :include-macros true]))
 
 (enable-console-print!)
+(set! (.-RELAXED js/CSV) true)
 
 (def writer (t/writer :json))
 (def reader (t/reader :json))
@@ -111,6 +113,14 @@
     (base-entry class-name time icon
                 (render-md "md-content" value))))
 
+(defn entry-csv [state type value time icon]
+  (base-entry :entry-csv time icon
+              (table {:striped? true :bordered? true :condensed? true :hover? true}
+                     (for [row (.parse js/CSV value)]
+                       (dom/tr
+                         (for [col row]
+                           (dom/td col)))))))
+
 (defn parse-command [txt]
   (let [[input output] (clojure.string/split txt #"\n" 2)]
     {:ok? true :value {:input input :output output}}))
@@ -159,7 +169,12 @@
            :label "Code"
            :icon "file"
            :shortcut \c
-           :parser parse-code}
+           :parser  parse-code}
+   "csv" {:fn entry-csv
+           :label "CSV"
+           :icon "th"
+           :shortcut \,
+           :parser identity-parser}
    "link" {:fn entry-link
            :label "Link"
            :icon "link"

@@ -10,6 +10,7 @@
                  [com.cognitect/transit-cljs "0.8.207"]
                  [cljsjs/pouchdb "3.4.0-1"]
                  [cljsjs/highlight "8.4-0"]
+                 [cljsjs/csv "1.1.1-0"]
                  [json-html "0.2.8"]
                  [markdown-clj "0.9.66"]
                  [racehub/om-bootstrap "0.5.0"]]
