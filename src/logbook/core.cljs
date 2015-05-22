@@ -7,6 +7,7 @@
             [om-bootstrap.random :as r]
             [om-bootstrap.button :as b]
             [om-bootstrap.nav :as n]
+            [om-bootstrap.table :refer [table]]
 
             [clojure.walk :as clj-walk]
 
@@ -28,7 +29,8 @@
                                :sync {:visible? false :local "" :remote ""}}}))
 
 (defn format-timestamp [timestamp]
-  (.toISOString (new js/Date timestamp)))
+  (let [date (new js/Date timestamp)]
+    (str (.toLocaleDateString date) " " (.toLocaleTimeString date))))
 
 (defn render-md [class-name txt]
   (dom/div {:class class-name
@@ -98,9 +100,10 @@
                          nil))
               :on-icon-click #(toggle-state-field state :raw)))
 
-(defn entry-markdown [state type value time icon]
-  (base-entry :entry-markdown time icon
-              (render-md "md-content" value)))
+(defn entry-markdown [class-name]
+  (fn [state type value time icon]
+    (base-entry class-name time icon
+                (render-md "md-content" value))))
 
 (defn parse-command [txt]
   (let [[input output] (clojure.string/split txt #"\n" 2)]
@@ -157,10 +160,30 @@
            :icon "cog"
            :shortcut \{
            :parser entry-json-parse}
-   "markdown" {:fn entry-markdown
+   "markdown" {:fn (entry-markdown :entry-markdown)
                :label "Markdown"
                :icon "pencil"
                :shortcut \#
+               :parser identity-parser}
+   "success" {:fn (entry-markdown :entry-success)
+               :label "Success"
+               :icon "ok"
+               :shortcut \s
+               :parser identity-parser}
+   "failure" {:fn (entry-markdown :entry-failure)
+               :label "Failure"
+               :icon "remove"
+               :shortcut \f
+               :parser identity-parser}
+   "question" {:fn (entry-markdown :entry-question)
+               :label "Question"
+               :icon "question-sign"
+               :shortcut \?
+               :parser identity-parser}
+   "observation" {:fn (entry-markdown :entry-observation)
+               :label "Observation"
+               :icon "eye-open"
+               :shortcut \o
                :parser identity-parser}
    "output" {:fn entry-output
              :label "Output"
@@ -268,11 +291,12 @@
               (dom/div {:class "buttons"}
                        (b/button {:bs-style "primary" :on-click on-create} "Create")))))
 
-(defn logbook [{:keys [title author created entries] :as state} db]
+(defn logbook [{:keys [title author created edited entries] :as state} db]
   (dom/div {:class "logbook"}
           (dom/h1 title)
           (dom/p {:class "logbook-data"} "by " (dom/strong author)
-                 " created " (dom/em (format-timestamp created)))
+                 " created " (format-timestamp created)
+                 " edited " (format-timestamp edited))
           (dom/div {:class "entries"} (om/build-all entry entries))
           (dom/hr)
           (logbook-input state db)))
@@ -302,16 +326,20 @@
     (callback)))
 
 (defn logbook-entry [{:keys [created edited title author _id] :as entry} db state]
-  (dom/li {:class "logbook-entry"}
-          (dom/a {:href "#"
-                  :on-click (on-link-click
-                              #((om/update! state :book
-                                          {:author author
-                                           :id _id
-                                           :title title
-                                           :created created})
-                              (load-book-entries state db _id)))}
-                 title " " author " " created " " edited)))
+  (dom/tr {:class "logbook-entry"}
+          (dom/td
+            (dom/a {:href "#"
+                    :on-click (on-link-click
+                                #((om/update! state :book
+                                              {:author author
+                                               :id _id
+                                               :title title
+                                               :created created})
+                                  (load-book-entries state db _id)))}
+                   title))
+          (dom/td {:class "logbook-entry-author"} author)
+          (dom/td {:class "logbook-entry-edited"} (format-timestamp created))
+          (dom/td {:class "logbook-entry-edited"} (format-timestamp edited))))
 
 (defn load-books [state db]
   (store/query db "logbook/books" {:include_docs true}
@@ -402,7 +430,13 @@
 
       (dom/div
         (top-bar state db)
-        (dom/ul (map #(logbook-entry % db state) books))
+        (table {:striped? true :bordered? true :condensed? true :hover? true}
+               (dom/thead
+                 (dom/th "Title")
+                 (dom/th "Author")
+                 (dom/th "Created")
+                 (dom/th "Edited"))
+               (map #(logbook-entry % db state) books))
         (new-book-form state db)))))
 
 (defn main-ui [data db]

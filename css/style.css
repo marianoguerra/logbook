@@ -45,6 +45,30 @@ body{
  border-color: #F46A62;
 }
 
+.entry-observation{
+ /* bg saturation 20*/
+ background-color: #D8DCB0;
+ border-color: #D8DCB0;
+}
+
+.entry-failure{
+ /* bg saturation 20*/
+ background-color: #FFD8CC;
+ border-color: #FF8A66;
+}
+
+.entry-success{
+ /* bg saturation 20, border 60*/
+ background-color: #B1C39C;
+ border-color: #B1C39C;
+}
+
+.entry-question{
+ /* bg saturation 20, border 60*/
+ background-color: #FFFACC;
+ border-color: #FFF066;
+}
+
 .entry-command{
  background-color: #111;
  color: #eee;
