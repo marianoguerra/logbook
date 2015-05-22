@@ -134,3 +134,7 @@ pre{
 .nav-item-active>a{
  color: #337ab7 !important;
 }
+
+.code-wrapper{
+ padding: 0;
+}

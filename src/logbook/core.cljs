@@ -15,6 +15,7 @@
 
             [json-html.core :as json-html]
             [markdown.core :as md]
+            logbook.all-highlighters
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as dom :include-macros true]))
 
@@ -55,6 +56,11 @@
               (dom/div {:class "command-wrapper"}
                 (dom/div {:class "command-input"} input)
                 (dom/pre {:class "command-output"} output))))
+
+(defn entry-code [state type {:keys [lang code]} time icon]
+  (base-entry :entry-code time icon
+              (dom/pre {:class "code-wrapper"}
+                (dom/code {:class lang} code))))
 
 (defn entry-output [state type output time icon]
   (base-entry "no-frame entry-output" time icon
@@ -109,6 +115,10 @@
   (let [[input output] (clojure.string/split txt #"\n" 2)]
     {:ok? true :value {:input input :output output}}))
 
+(defn parse-code [txt]
+  (let [[lang code] (clojure.string/split txt #"\n" 2)]
+    {:ok? true :value {:lang lang :code code}}))
+
 (defn parse-link [txt]
   (let [[url title description] (clojure.string/split txt #"\n" 3)]
     {:ok? true :value {:url url
@@ -145,6 +155,11 @@
               :icon "console"
               :shortcut \$
               :parser parse-command}
+   "code" {:fn entry-code
+           :label "Code"
+           :icon "file"
+           :shortcut \c
+           :parser parse-code}
    "link" {:fn entry-link
            :label "Link"
            :icon "link"
@@ -227,6 +242,18 @@
         book {:created now :edited now :title title :author author :t store/type-book}]
     (store/post db book callback)))
 
+(extend-type js/NodeList
+    ISeqable
+      (-seq [array] (array-seq array 0)))
+
+(defn qsa [selector]
+  (.querySelectorAll js/document selector))
+
+(defn init-highlight []
+  (prn "init highlight")
+  (doseq [node (qsa "pre code")]
+    (.highlightBlock js/hljs node)))
+
 (defn create-entry [state db]
   (let [{:keys [type text id]} state
         parse (get-in entry-formatters [type :parser])
@@ -240,7 +267,10 @@
         (om/transact! state :entries #(conj % entry))
         (set-text state ""))
 
-      (om/update! state [:input-error] reason))))
+      (om/update! state [:input-error] reason))
+    ; TODO: allow types to specify a function to call after creation
+    (when (= type "code")
+      (.setTimeout js/window init-highlight 100))))
 
 (defn event-value [event]
   (.-value (.-target event)))
@@ -293,13 +323,14 @@
 
 (defn logbook [{:keys [title author created edited entries] :as state} db]
   (dom/div {:class "logbook"}
-          (dom/h1 title)
-          (dom/p {:class "logbook-data"} "by " (dom/strong author)
-                 " created " (format-timestamp created)
-                 " edited " (format-timestamp edited))
-          (dom/div {:class "entries"} (om/build-all entry entries))
-          (dom/hr)
-          (logbook-input state db)))
+           (dom/h1 title)
+           (dom/p {:class "logbook-data"} "by " (dom/strong author)
+                  " created " (format-timestamp created)
+                  " edited " (format-timestamp edited))
+           (dom/div {:class "entries"} (om/build-all entry entries))
+           (dom/hr)
+           (logbook-input state db)))
+
 
 (defn results->clj [callback]
   (fn [err res]
@@ -330,7 +361,8 @@
           (dom/td
             (dom/a {:href "#"
                     :on-click (on-link-click
-                                #((om/update! state :book
+                                (fn [_]
+                                  (om/update! state :book
                                               {:author author
                                                :id _id
                                                :title title
