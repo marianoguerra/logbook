@@ -5,7 +5,7 @@
 ; this types are also written on setup-db map functions, change them in both places
 (def type-entry "e")
 (def type-book "b")
-(def name "logbook")
+(def db-name "logbook")
 
 (defn new-db [name]
   {:name name :db (js/PouchDB. name)})

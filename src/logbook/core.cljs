@@ -239,11 +239,11 @@
 (defn unknown-entry [type value time icon]
   (base-entry :unknown time nil (str "Unknown entry of type: " (name type))))
 
-(defcomponent entry [{:keys [type value time] :as data} state]
+(defcomponent entry [{:keys [type value created edited] :as data} state]
   (render [_]
           (if-let [{:keys [fn icon]} (get entry-formatters type)]
-            (fn data type value time icon)
-            (unknown-entry type value time ""))))
+            (fn data type value edited icon)
+            (unknown-entry type value edited ""))))
 
 (defn entry-option [default [type {:keys [label shortcut]}]]
   (dom/option {:value (name type)}
@@ -425,7 +425,7 @@
 (defn sync-box [data db]
   (let [local-key [:ui :sync :local]
         remote-key [:ui :sync :remote]
-        local store/name
+        local store/db-name
         remote (get-in data remote-key)
         on-upload #(store/replicate local remote)
         on-download #(store/replicate remote local)
@@ -492,7 +492,7 @@
     (logbook-list data db)))
 
 (defn init []
-  (let [db (store/new-db store/name)]
+  (let [db (store/new-db store/db-name)]
     (store/setup-db db)
 
     (om/root
