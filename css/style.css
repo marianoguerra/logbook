@@ -116,7 +116,7 @@ pre{
  max-width: 100%;
 }
 
-.entry-json-raw{
+.entry-json-raw, .entry-csv-raw, .entry-code-raw{
  width: 100%;
  min-height: 10em;
 }

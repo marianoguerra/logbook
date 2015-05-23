@@ -59,11 +59,6 @@
                 (dom/div {:class "command-input"} input)
                 (dom/pre {:class "command-output"} output))))
 
-(defn entry-code [state type {:keys [lang code]} time icon]
-  (base-entry :entry-code time icon
-              (dom/pre {:class "code-wrapper"}
-                (dom/code {:class lang} code))))
-
 (defn entry-output [state type output time icon]
   (base-entry "no-frame entry-output" time icon
               (dom/pre {:class "output"} output)))
@@ -108,6 +103,16 @@
                          nil))
               :on-icon-click #(toggle-state-field state :raw)))
 
+(defn entry-code [state type {:keys [lang code]} time icon]
+  (base-entry :entry-code time icon
+              (if (:raw state)
+                (dom/textarea {:class "entry-code-raw" :value code})
+
+                (dom/pre {:class "code-wrapper"}
+                         (dom/code {:class lang} code)))
+
+              :on-icon-click #(toggle-state-field state :raw)))
+
 (defn entry-markdown [class-name]
   (fn [state type value time icon]
     (base-entry class-name time icon
@@ -115,11 +120,14 @@
 
 (defn entry-csv [state type value time icon]
   (base-entry :entry-csv time icon
-              (table {:striped? true :bordered? true :condensed? true :hover? true}
-                     (for [row (.parse js/CSV value)]
-                       (dom/tr
-                         (for [col row]
-                           (dom/td col)))))))
+              (if (:raw state)
+                (dom/textarea {:class "entry-csv-raw" :value value})
+                (table {:striped? true :bordered? true :condensed? true :hover? true}
+                       (for [row (.parse js/CSV value)]
+                         (dom/tr
+                           (for [col row]
+                             (dom/td col))))))
+              :on-icon-click #(toggle-state-field state :raw)))
 
 (defn parse-command [txt]
   (let [[input output] (clojure.string/split txt #"\n" 2)]
