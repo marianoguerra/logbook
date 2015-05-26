@@ -41,7 +41,7 @@
 (defn unknown-entry [type value time icon _id]
   (base-entry :unknown time nil (str "Unknown entry of type: " (name type)) _id))
 
-(defn entry-error [state type value time icon _id]
+(defn entry-error [state type {value :value} time icon _id]
   (base-entry :entry-error time icon value _id))
 
 (defn entry-command [state type {:keys [input output]} time icon _id]
@@ -50,7 +50,7 @@
                 (dom/div {:class "command-input"} input)
                 (dom/pre {:class "command-output"} output)) _id))
 
-(defn entry-output [state type output time icon _id]
+(defn entry-output [state type {output :value} time icon _id]
   (base-entry "no-frame entry-output" time icon
               (dom/pre {:class "output"} output) _id))
 
@@ -85,7 +85,7 @@
 (defn toggle-state-field [state field]
   (om/update! state field (not (get state field))))
 
-(defn entry-json [state type value time icon _id]
+(defn entry-json [state type {value :value} time icon _id]
   (base-entry :entry-json time icon
               (if (:raw state)
                 (dom/textarea {:class "entry-json-raw" :value (pretty-print-json value)})
@@ -106,11 +106,11 @@
               :on-icon-click #(toggle-state-field state :raw)))
 
 (defn entry-markdown [class-name]
-  (fn [state type value time icon _id]
+  (fn [state type {value :value} time icon _id]
     (base-entry class-name time icon
                 (render-md "md-content" value) _id)))
 
-(defn entry-csv [state type value time icon _id]
+(defn entry-csv [state type {value :value} time icon _id]
   (base-entry :entry-csv time icon
               (if (:raw state)
                 (dom/textarea {:class "entry-csv-raw" :value value})
@@ -145,7 +145,7 @@
 (defn entry-json-parse [txt]
   (try
     (.parse js/JSON txt)
-    {:ok? true :value txt}
+    {:ok? true :value {:value txt}}
     (catch js/Error e
       {:ok? false
        :error e
@@ -153,7 +153,7 @@
        :code :invalid-format})))
 
 (defn identity-parser [txt]
-  {:ok? true :value txt})
+  {:ok? true :value {:value txt}})
 
 (def entry-formatters
   {"error" {:fn entry-error

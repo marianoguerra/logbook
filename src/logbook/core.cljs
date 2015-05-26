@@ -13,13 +13,10 @@
 
             [cognitect.transit :as t]
 
-            [json-html.core :as json-html]
-            [markdown.core :as md]
             logbook.all-highlighters
             [cljsjs.csv :as csv]
             [logbook.entry :refer [glyph entry-formatters entry date-now
                                    format-timestamp entry-formatters-shortcuts]]
-            [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as dom :include-macros true]))
 
 (enable-console-print!)
