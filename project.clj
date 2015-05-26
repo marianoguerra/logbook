@@ -17,17 +17,15 @@
   :plugins [[lein-cljsbuild "1.0.5"]]
   :cljsbuild {:builds [{:id "dev"
                         :source-paths ["src"]
-                        :compiler {
-                                   :main logbook.core
-                                   :output-to "main.js"
+                        :compiler {:main logbook.core
+                                   :output-to "main-dev.js"
                                    :output-dir "out"
                                    :optimizations :none
                                    :source-map true}}
                        {:id "release"
                         :source-paths ["src"]
-                        :compiler {
-                                   :main main.core
+                        :compiler {:main logbook.core
                                    :output-to "main.js"
                                    :optimizations :advanced
                                    :pretty-print false}}]}
-)
+  )

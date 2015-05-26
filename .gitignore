@@ -10,5 +10,6 @@ pom.xml.asc
 .hgignore
 .hg/
 /*-init.clj
-/main.js
+/main-dev.js
 /out
+
