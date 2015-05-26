@@ -52,7 +52,6 @@
   (.querySelectorAll js/document selector))
 
 (defn init-highlight []
-  (prn "init highlight")
   (doseq [node (qsa "pre code")]
     (.highlightBlock js/hljs node)))
 
@@ -75,7 +74,7 @@
       (.setTimeout js/window init-highlight 100))))
 
 (defn event-value [event]
-  (.-value (.-target event)))
+  (aget event "target" "value"))
 
 (defn update-textarea-height [state txt]
   (let [rows (count (clojure.string/split txt #"\n"))]
@@ -95,8 +94,8 @@
       (set-text state value))))
 
 (defn on-textarea-key-down [event state db]
-  (let [ctrl-pressed (.-ctrlKey event)
-        key-code (.-keyCode event)]
+  (let [ctrl-pressed (aget event "ctrlKey")
+        key-code (aget event "keyCode")]
     (when (and ctrl-pressed (= key-code 13))
       (create-entry state db))))
 
@@ -177,10 +176,12 @@
 
 (defn results->clj [callback]
   (fn [err res]
-    (let [rows (.-rows res)
-          docs (map #(.-doc %) rows)
-          clj-docs (vec (clj-walk/keywordize-keys (js->clj docs)))]
-      (callback clj-docs))))
+    (let [rows (aget res "rows")
+          docs (map #(aget % "doc") rows)
+          clj-docs (js->clj docs)
+          clj-docs-kw (clj-walk/keywordize-keys clj-docs)
+          clj-docs-vec (vec clj-docs-kw)]
+      (callback clj-docs-vec))))
 
 (def small-timestamp 0)
 (def big-timestamp 99999999999999)
@@ -219,7 +220,8 @@
 (defn load-books [state db]
   (store/query db "logbook/books" {:include_docs true}
                (results->clj
-                 (fn [docs] (om/update! state :books docs)))))
+                 (fn [docs]
+                   (om/update! state :books docs)))))
 
 (defn new-book-form [data db]
   (let [{:keys [title author]} (get-in data [:ui :new-book])
@@ -292,7 +294,8 @@
     (new-book-form state db)))
 
 (defn logbook-list [state db]
-  (let [books (:books state)]
+  (let [books (:books state)
+        filtered-books (filter-books state books)]
     (if (empty? books)
       (do
         (load-books state db)
@@ -306,7 +309,7 @@
                  (dom/th "Author")
                  (dom/th "Created")
                  (dom/th "Edited"))
-               (map #(logbook-entry % db state) (filter-books state books)))
+               (map #(logbook-entry % db state) filtered-books))
         (new-book-form state db)))))
 
 (defn main-ui [data db]
