@@ -25,6 +25,10 @@
 
 (def writer (t/writer :json))
 (def reader (t/reader :json))
+(def search-path [:ui :search])
+
+(defn glyph [glyph-name & {:keys [on-click]}]
+  (r/glyphicon {:glyph glyph-name :on-click on-click}))
 
 (defonce app-state (atom {:books nil
                           :book nil
@@ -40,36 +44,36 @@
             :dangerouslySetInnerHTML {:__html (md/md->html txt)}}
            nil))
 
-(defn base-entry [sub-class time icon body & {:keys [on-icon-click]}]
-  (dom/div {:class (str "entry " (name sub-class))}
+(defn base-entry [sub-class time icon body _id & {:keys [on-icon-click]}]
+  (dom/div {:class (str "entry " (name sub-class)) :key _id}
            (dom/div {:class "entry-header"}
                     (dom/div {:class "entry-title"}
-                             (r/glyphicon {:glyph icon :on-click on-icon-click})
+                             (glyph  icon :on-click on-icon-click)
                              "")
                     (dom/div {:class "entry-time"} (format-timestamp time)))
 
            (dom/div {:class "entry-body"} body)))
 
-(defn entry-error [state type value time icon]
-  (base-entry :entry-error time icon value))
+(defn entry-error [state type value time icon _id]
+  (base-entry :entry-error time icon value _id))
 
-(defn entry-command [state type {:keys [input output]} time icon]
+(defn entry-command [state type {:keys [input output]} time icon _id]
   (base-entry :entry-command time icon
               (dom/div {:class "command-wrapper"}
                 (dom/div {:class "command-input"} input)
-                (dom/pre {:class "command-output"} output))))
+                (dom/pre {:class "command-output"} output)) _id))
 
-(defn entry-output [state type output time icon]
+(defn entry-output [state type output time icon _id]
   (base-entry "no-frame entry-output" time icon
-              (dom/pre {:class "output"} output)))
+              (dom/pre {:class "output"} output) _id))
 
-(defn entry-link [state type {:keys [url title description]} time icon]
+(defn entry-link [state type {:keys [url title description]} time icon _id]
   (base-entry :entry-link time icon
               (dom/div {:class "link-wrapper"}
                 (dom/p {:class "link"} (dom/a {:href url :target "_blank"} title))
-                (render-md "link-description" description))))
+                (render-md "link-description" description)) _id))
 
-(defn entry-image [state type {:keys [url title description]} time icon]
+(defn entry-image [state type {:keys [url title description]} time icon _id]
   (base-entry :entry-link time icon
               (dom/div {:class "img-wrapper"}
                 (when-not (empty? title)
@@ -80,7 +84,7 @@
                               (dom/img {:src url :title description})))
 
                 (when-not (empty? description)
-                  (render-md "img-description" description)))))
+                  (render-md "img-description" description))) _id))
 
 (defn parse-json [txt]
   (.parse js/JSON txt))
@@ -94,31 +98,32 @@
 (defn toggle-state-field [state field]
   (om/update! state field (not (get state field))))
 
-(defn entry-json [state type value time icon]
+(defn entry-json [state type value time icon _id]
   (base-entry :entry-json time icon
               (if (:raw state)
                 (dom/textarea {:class "entry-json-raw" :value (pretty-print-json value)})
                 (dom/div {:dangerouslySetInnerHTML
                           {:__html (json-html/json->html (parse-json value))}}
                          nil))
+              _id
               :on-icon-click #(toggle-state-field state :raw)))
 
-(defn entry-code [state type {:keys [lang code]} time icon]
+(defn entry-code [state type {:keys [lang code]} time icon _id]
   (base-entry :entry-code time icon
               (if (:raw state)
                 (dom/textarea {:class "entry-code-raw" :value code})
 
                 (dom/pre {:class "code-wrapper"}
                          (dom/code {:class lang} code)))
-
+              _id
               :on-icon-click #(toggle-state-field state :raw)))
 
 (defn entry-markdown [class-name]
-  (fn [state type value time icon]
+  (fn [state type value time icon _id]
     (base-entry class-name time icon
-                (render-md "md-content" value))))
+                (render-md "md-content" value) _id)))
 
-(defn entry-csv [state type value time icon]
+(defn entry-csv [state type value time icon _id]
   (base-entry :entry-csv time icon
               (if (:raw state)
                 (dom/textarea {:class "entry-csv-raw" :value value})
@@ -127,6 +132,7 @@
                          (dom/tr
                            (for [col row]
                              (dom/td col))))))
+              _id
               :on-icon-click #(toggle-state-field state :raw)))
 
 (defn parse-command [txt]
@@ -167,66 +173,79 @@
             :label "Error"
             :icon "alert"
             :shortcut \!
+            :search-keys [:value]
             :parser identity-parser}
    "command" {:fn entry-command
               :label "Command"
               :icon "console"
               :shortcut \$
+              :search-keys [:input :output]
               :parser parse-command}
    "code" {:fn entry-code
            :label "Code"
            :icon "file"
            :shortcut \c
+           :search-keys [:lang :code]
            :parser  parse-code}
    "csv" {:fn entry-csv
            :label "CSV"
            :icon "th"
            :shortcut \,
+           :search-keys [:value]
            :parser identity-parser}
    "link" {:fn entry-link
            :label "Link"
            :icon "link"
            :shortcut \l
+           :search-keys [:url :title :description]
            :parser parse-link}
    "image" {:fn entry-image
             :label "Image"
             :icon "picture"
             :shortcut \i
+            :search-keys [:url :title :description]
             :parser parse-image}
    "json" {:fn entry-json
            :label "JSON"
            :icon "cog"
+           :search-keys [:value]
            :shortcut \{
            :parser entry-json-parse}
    "markdown" {:fn (entry-markdown :entry-markdown)
                :label "Markdown"
                :icon "pencil"
                :shortcut \#
+               :search-keys [:value]
                :parser identity-parser}
    "success" {:fn (entry-markdown :entry-success)
                :label "Success"
                :icon "ok"
                :shortcut \s
+               :search-keys [:value]
                :parser identity-parser}
    "failure" {:fn (entry-markdown :entry-failure)
                :label "Failure"
                :icon "remove"
                :shortcut \f
+               :search-keys [:value]
                :parser identity-parser}
    "question" {:fn (entry-markdown :entry-question)
                :label "Question"
                :icon "question-sign"
                :shortcut \?
+               :search-keys [:value]
                :parser identity-parser}
    "observation" {:fn (entry-markdown :entry-observation)
                :label "Observation"
                :icon "eye-open"
                :shortcut \o
+               :search-keys [:value]
                :parser identity-parser}
    "output" {:fn entry-output
              :label "Output"
              :icon "menu-right"
              :shortcut \>
+             :search-keys [:value]
              :parser identity-parser}})
 
 ; TODO: make entry-formatters an atom and watch for changes and update this
@@ -244,14 +263,14 @@
 (defn set-type [state type]
   (om/update! state :type type))
 
-(defn unknown-entry [type value time icon]
-  (base-entry :unknown time nil (str "Unknown entry of type: " (name type))))
+(defn unknown-entry [type value time icon _id]
+  (base-entry :unknown time nil (str "Unknown entry of type: " (name type)) _id))
 
-(defcomponent entry [{:keys [type value created edited] :as data} state]
+(defcomponent entry [{:keys [type value created edited _id] :as data} state]
   (render [_]
           (if-let [{:keys [fn icon]} (get entry-formatters type)]
-            (fn data type value edited icon)
-            (unknown-entry type value edited ""))))
+            (fn data type value edited icon _id)
+            (unknown-entry type value edited "" _id))))
 
 (defn entry-option [default [type {:keys [label shortcut]}]]
   (dom/option {:value (name type)}
@@ -344,13 +363,44 @@
               (dom/div {:class "buttons"}
                        (b/button {:bs-style "primary" :on-click on-create} "Create")))))
 
+(defn entry-to-search-str [{:keys [type value] :as data}]
+  (let [{search-keys :search-keys} (get entry-formatters type)
+        fields (map (fn [key] (let [field (key value)]
+                                (if (nil? field) "" (str field))))
+                                search-keys)
+        entry-str (clojure.string/join " " fields)]
+    (.toLowerCase entry-str)))
+
+(defn filter-search [data entries]
+  (let [search-val (get-in data [:ui :search])
+        search (if (nil? search-val) "" (.toLowerCase search-val))]
+    (filter (fn [entry]
+              (let [entry-str (entry-to-search-str entry)
+                    match (or (empty? search) (not= (.indexOf entry-str search) -1))]
+                (prn entry-str search match (empty? search) (not= (.indexOf entry-str search) -1))
+                match))
+            entries)))
+
+(defn on-change-update [state path]
+  (fn [event]
+    (let [value (event-value event)]
+      (om/update! state path value))))
+
+(defn search-box [data]
+  (let [search (get-in data search-path)]
+    (i/input {:type "text" :value search
+              :on-input (on-change-update data search-path)
+              :addon-before (glyph  "search")})))
+
 (defn logbook [{:keys [title author created edited entries] :as state} db]
   (dom/div {:class "logbook"}
            (dom/h1 title)
            (dom/p {:class "logbook-data"} "by " (dom/strong author)
                   " created " (format-timestamp created)
                   " edited " (format-timestamp edited))
-           (dom/div {:class "entries"} (om/build-all entry entries))
+           (search-box state)
+           (dom/div {:class "entries"}
+                    (om/build-all entry (filter-search state entries)))
            (dom/hr)
            (logbook-input state db)))
 
@@ -401,11 +451,6 @@
                (results->clj
                  (fn [docs] (om/update! state :books docs)))))
 
-(defn on-change-update [state path]
-  (fn [event]
-    (let [value (event-value event)]
-      (om/update! state path value))))
-
 (defn new-book-form [data db]
   (let [{:keys [title author]} (get-in data [:ui :new-book])
         title-key [:ui :new-book :title]
@@ -420,15 +465,15 @@
     (dom/form {:class "form-box new-book-form"}
               (i/input {:type "text"
                         :value title
-                        :addon-before (r/glyphicon {:glyph "pencil"})
+                        :addon-before (glyph  "pencil")
                         :on-input (on-change-update data title-key)})
               (i/input {:type "text"
                         :value author
-                        :addon-before (r/glyphicon {:glyph "user"})
+                        :addon-before (glyph  "user")
                         :on-input (on-change-update data author-key)})
               (dom/div {:class "buttons"}
                        (b/button {:bs-style "primary" :on-click on-create}
-                                 "Create " (r/glyphicon {:glyph "book"}))))))
+                                 "Create " (glyph  "book"))))))
 
 (defn sync-box [data db]
   (let [local-key [:ui :sync :local]
@@ -446,13 +491,12 @@
                       :on-input (on-change-update data remote-key)})
             (dom/div {:class "buttons"}
                      (b/button {:bs-style "primary" :on-click on-upload}
-                               "" (r/glyphicon {:glyph "arrow-up"}))
+                               "" (glyph  "arrow-up"))
                      (b/button {:bs-style "primary" :on-click on-download}
-                               "" (r/glyphicon {:glyph "arrow-down"}))
+                               "" (glyph  "arrow-down"))
                      (b/button {:bs-style "primary" :on-click on-sync}
-                               (r/glyphicon {:glyph "arrow-up"})
-                               (r/glyphicon {:glyph "arrow-down"}))))))
-
+                               (glyph  "arrow-up")
+                               (glyph  "arrow-down"))))))
 
 (defn top-bar [data db]
   (let [sync-visible-path [:ui :sync :visible?]
@@ -465,15 +509,17 @@
           {:collapsible? true}
           (n/nav-item {:key 1 :href "#" :on-click on-sync-click
                        :class (if sync-visible "nav-item-active" "")}
-                      (r/glyphicon {:glyph "refresh"}))))
+                      (glyph  "refresh"))))
       (when sync-visible
-        (sync-box data db)))))
+        (sync-box data db))
+
+      (search-box data))))
 
 (defn empty-logbook-list [state db]
   (dom/div
     (top-bar state db)
     (dom/h2 {:class "centered"}
-            "No " (r/glyphicon {:glyph "book"}) "s")
+            "No " (glyph  "book") "s")
     (new-book-form state db)))
 
 (defn logbook-list [state db]
