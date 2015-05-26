@@ -1,10 +1,7 @@
 (ns logbook.entry
   (:require [om.core :as om]
 
-            [om-bootstrap.input :as i]
             [om-bootstrap.random :as r]
-            [om-bootstrap.button :as b]
-            [om-bootstrap.nav :as n]
             [om-bootstrap.table :refer [table]]
 
             [json-html.core :as json-html]
@@ -12,6 +9,8 @@
             [cljsjs.csv :as csv]
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as dom :include-macros true]))
+
+(set! (.-RELAXED js/CSV) true)
 
 (defn date-now []
   (.now js/Date))

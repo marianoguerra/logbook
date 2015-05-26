@@ -14,13 +14,11 @@
             [cognitect.transit :as t]
 
             logbook.all-highlighters
-            [cljsjs.csv :as csv]
             [logbook.entry :refer [glyph entry-formatters entry date-now
                                    format-timestamp entry-formatters-shortcuts]]
             [om-tools.dom :as dom :include-macros true]))
 
 (enable-console-print!)
-(set! (.-RELAXED js/CSV) true)
 
 (def writer (t/writer :json))
 (def reader (t/reader :json))
