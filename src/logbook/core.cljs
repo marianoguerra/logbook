@@ -158,7 +158,7 @@
 (defn search-box [data]
   (let [search (get-in data search-path)]
     (i/input {:type "text" :value search
-              :on-input (on-change-update data search-path)
+              :on-change (on-change-update data search-path)
               :addon-before (glyph  "search")})))
 
 (defn logbook [{:keys [title author created edited entries] :as state} db]
@@ -238,11 +238,11 @@
               (i/input {:type "text"
                         :value title
                         :addon-before (glyph  "pencil")
-                        :on-input (on-change-update data title-key)})
+                        :on-change (on-change-update data title-key)})
               (i/input {:type "text"
                         :value author
                         :addon-before (glyph  "user")
-                        :on-input (on-change-update data author-key)})
+                        :on-change (on-change-update data author-key)})
               (dom/div {:class "buttons"}
                        (b/button {:bs-style "primary" :on-click on-create}
                                  "Create " (glyph  "book"))))))
@@ -260,7 +260,7 @@
             (i/input {:type "text"
                       :value remote
                       :addon-before "Remote"
-                      :on-input (on-change-update data remote-key)})
+                      :on-change (on-change-update data remote-key)})
             (dom/div {:class "buttons"}
                      (b/button {:bs-style "primary" :on-click on-upload}
                                "" (glyph  "arrow-up"))
