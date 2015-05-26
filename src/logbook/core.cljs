@@ -371,13 +371,23 @@
         entry-str (clojure.string/join " " fields)]
     (.toLowerCase entry-str)))
 
+(defn get-search-term [data]
+  (let [search-val (get-in data [:ui :search])]
+    (if (nil? search-val) "" (.toLowerCase search-val))))
+
+(defn filter-books [data entries]
+  (let [search (get-search-term data)]
+    (filter (fn [{:keys [title author]}]
+              (let [entry-str (.toLowerCase (str title " " author))
+                    match (or (empty? search) (not= (.indexOf entry-str search) -1))]
+                match))
+            entries)))
+
 (defn filter-search [data entries]
-  (let [search-val (get-in data [:ui :search])
-        search (if (nil? search-val) "" (.toLowerCase search-val))]
+  (let [search (get-search-term data)]
     (filter (fn [entry]
               (let [entry-str (entry-to-search-str entry)
                     match (or (empty? search) (not= (.indexOf entry-str search) -1))]
-                (prn entry-str search match (empty? search) (not= (.indexOf entry-str search) -1))
                 match))
             entries)))
 
@@ -430,7 +440,7 @@
     (callback)))
 
 (defn logbook-entry [{:keys [created edited title author _id] :as entry} db state]
-  (dom/tr {:class "logbook-entry"}
+  (dom/tr {:class "logbook-entry" :key _id}
           (dom/td
             (dom/a {:href "#"
                     :on-click (on-link-click
@@ -518,8 +528,7 @@
 (defn empty-logbook-list [state db]
   (dom/div
     (top-bar state db)
-    (dom/h2 {:class "centered"}
-            "No " (glyph  "book") "s")
+    (dom/h2 {:class "centered"} "No " (glyph  "book") "s")
     (new-book-form state db)))
 
 (defn logbook-list [state db]
@@ -537,7 +546,7 @@
                  (dom/th "Author")
                  (dom/th "Created")
                  (dom/th "Edited"))
-               (map #(logbook-entry % db state) books))
+               (map #(logbook-entry % db state) (filter-books state books)))
         (new-book-form state db)))))
 
 (defn main-ui [data db]
