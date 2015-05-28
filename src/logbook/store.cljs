@@ -22,11 +22,20 @@
 (defn remove [{db :db} id rev callback]
   (.remove db id callback))
 
-(defn replicate [{db :db} source target & options]
-  (.replicate db source target (clj->js (or options {}))))
+(defn- add-handlers [p handlers]
+  (reduce (fn [cp handler-key]
+            (if-let [handler (clojure.core/get handlers handler-key)]
+              (.on cp (name handler-key) handler)
+              cp))
+          p [:change :paused :active :denied :complete :error]))
 
-(defn sync [source target & options]
-  (.sync js/PouchDB source target (clj->js (or options {}))))
+(defn replicate [{db :db} source target options]
+  (add-handlers (.replicate db source target (clj->js (or options {})))
+                (:handlers options)))
+
+(defn sync [source target options]
+  (add-handlers (.sync js/PouchDB source target (clj->js (or options {})))
+                (:handlers options)))
 
 (defn replicate [source target & options]
   (.replicate js/PouchDB source target (clj->js (or options {}))))

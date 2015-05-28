@@ -27,7 +27,9 @@
 (defonce app-state (atom {:books nil
                           :book nil
                           :ui {:new-book {:title "" :author ""}
-                               :sync {:visible? false :local "" :remote ""}}}))
+                               :sync {:visible? false
+                                      :status ""
+                                      :remote "http://localhost:5984/logbook"}}}))
 
 (defn set-text [state txt]
   (om/update! state :text txt))
@@ -247,20 +249,42 @@
                        (b/button {:bs-style "primary" :on-click on-create}
                                  "Create " (glyph  "book"))))))
 
+(def sync-status-key [:ui :sync :status])
+
+(defn set-sync-status [data status type]
+  (om/update! data sync-status-key {:text status :type type}))
+
+(defn make-sync-handlers [data]
+  {:change (fn [info] (prn "change" info))
+   :paused (fn [] (set-sync-status data "Replication Paused" :paused))
+   :active (fn [] (set-sync-status data "Replication Resumed" :active))
+   :denied (fn [info] (set-sync-status data "Replication Denied" :denied))
+   :complete (fn [info]
+               (.log js/console "replication complete" info)
+               (set-sync-status data "Replication Complete" :complete))
+   :error (fn [info]
+               (.log js/console "replication error" info)
+               (set-sync-status data "Replication Error" :error))})
+
 (defn sync-box [data db]
-  (let [local-key [:ui :sync :local]
-        remote-key [:ui :sync :remote]
+  (let [remote-key [:ui :sync :remote]
         local store/db-name
+        sync-status (get-in data sync-status-key)
         remote (get-in data remote-key)
-        on-upload #(store/replicate local remote)
+        sync-handlers (make-sync-handlers data)
+        on-upload #(store/replicate local remote {:handlers sync-handlers})
         on-download #(store/replicate remote local)
-        on-sync #(store/sync local remote)]
+        on-sync #(store/sync local remote {:handlers sync-handlers})]
 
   (dom/form {:class "form-box sync-form"}
             (i/input {:type "text"
                       :value remote
                       :addon-before "Remote"
                       :on-change (on-change-update data remote-key)})
+
+            (dom/p {:class (str "sync-status " (name (or (:type sync-status) "")))}
+                   (:text sync-status))
+
             (dom/div {:class "buttons"}
                      (b/button {:bs-style "primary" :on-click on-upload}
                                "" (glyph  "arrow-up"))
@@ -272,7 +296,10 @@
 
 (defn top-bar [data db]
   (let [sync-visible-path [:ui :sync :visible?]
-        on-sync-click (on-link-click #(om/transact! data sync-visible-path not))
+        on-sync-click (on-link-click
+                        (fn []
+                          (om/update! data sync-status-key {})
+                          (om/transact! data sync-visible-path not)))
         sync-visible (get-in data sync-visible-path)]
     (dom/div
       (n/navbar
