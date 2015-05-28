@@ -273,7 +273,7 @@
         remote (get-in data remote-key)
         sync-handlers (make-sync-handlers data)
         on-upload #(store/replicate local remote {:handlers sync-handlers})
-        on-download #(store/replicate remote local)
+        on-download #(store/replicate remote local {:handlers sync-handlers})
         on-sync #(store/sync local remote {:handlers sync-handlers})]
 
   (dom/form {:class "form-box sync-form"}
